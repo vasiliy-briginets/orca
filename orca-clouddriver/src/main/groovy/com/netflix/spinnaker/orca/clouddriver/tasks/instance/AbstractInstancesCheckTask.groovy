@@ -39,7 +39,7 @@ import retrofit.RetrofitError
 @Slf4j
 abstract class AbstractInstancesCheckTask extends AbstractCloudProviderAwareTask implements OverridableTimeoutRetryableTask {
   long backoffPeriod = TimeUnit.SECONDS.toMillis(10)
-  long timeout = TimeUnit.MINUTES.toMillis(20)
+  long timeout = TimeUnit.HOURS.toMillis(2)
   long serverGroupWaitTime = TimeUnit.MINUTES.toMillis(10)
 
   @Autowired

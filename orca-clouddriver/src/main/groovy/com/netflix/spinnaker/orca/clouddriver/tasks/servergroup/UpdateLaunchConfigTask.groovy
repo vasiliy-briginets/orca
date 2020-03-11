@@ -1,7 +1,7 @@
 /*
- * Copyright 2016 Google, Inc.
+ * Copyright 2020 Netflix, Inc.
  *
- * Licensed under the Apache License, Version 2.0 (the "License")
+ * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
@@ -48,6 +48,8 @@ class UpdateLaunchConfigTask implements Task, DeploymentDetailsAware, CloudProvi
       // Since AWS is the only provider that needs to do anything here, it felt like overkill to do the
       // provider-specific rigmarole here.
       ops = getAwsOps(stage)
+    } else if (cloudProvider == "yandex") {
+      ops = getYandexOps(stage)
     } else {
       ops = [[(OPERATION): stage.context]]
     }
@@ -81,6 +83,34 @@ class UpdateLaunchConfigTask implements Task, DeploymentDetailsAware, CloudProvi
     ops << [(OPERATION): operation]
     ops
   }
+
+  private getYandexOps(Stage stage) {
+    def operation = new HashMap(stage.context)
+    operation.name = operation.asgName ?: operation.serverGroupName
+
+    operation.instanceTemplate.bootDiskSpec.diskSpec.imageId = getYandexImageId(stage)
+    if (!operation.instanceTemplate.bootDiskSpec.diskSpec.imageId) {
+      throw new IllegalStateException("No image could be found in ${stage.context.region}.")
+    }
+
+    def ops = []
+    ops << [(OPERATION): operation]
+    ops
+  }
+  private String getYandexImageId(Stage stage) {
+    String imageId
+
+    withImageFromPrecedingStage(stage, null, "yandex") {
+      imageId = imageId ?: it.imageId
+    }
+
+    withImageFromDeploymentDetails(stage, null, "yandex") {
+      imageId = imageId ?: it.imageId
+    }
+
+    return imageId
+  }
+
 
   private String getImage(Stage stage) {
     String amiName = stage.context.amiName

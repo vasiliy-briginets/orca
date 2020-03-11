@@ -17,7 +17,6 @@
 package com.netflix.spinnaker.orca.clouddriver.tasks.providers.yandex
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.netflix.spinnaker.kork.artifacts.model.Artifact
 import com.netflix.spinnaker.orca.clouddriver.tasks.servergroup.ServerGroupCreator
 import com.netflix.spinnaker.orca.kato.tasks.DeploymentDetailsAware
 import com.netflix.spinnaker.orca.pipeline.model.Stage
@@ -54,40 +53,25 @@ class YandexServerGroupCreator implements ServerGroupCreator, DeploymentDetailsA
       operation.credentials = operation.account
     }
 
-    if (stage.context.imageSource == "artifact") {
-      operation.imageArtifact = getImageArtifact(stage)
-    } else {
-      operation.instanceTemplate.bootDiskSpec.diskSpec.imageId = operation.instanceTemplate.bootDiskSpec.diskSpec.imageId ?: getImage(stage)
-      if (!operation.instanceTemplate.bootDiskSpec.diskSpec.imageId) {
-        throw new IllegalStateException("No image could be found in ${stage.context.region}.")
-      }
+    operation.instanceTemplate.bootDiskSpec.diskSpec.imageId = operation.instanceTemplate.bootDiskSpec.diskSpec.imageId ?: getImageId(stage)
+    if (!operation.instanceTemplate.bootDiskSpec.diskSpec.imageId) {
+      throw new IllegalStateException("No image could be found in ${stage.context.region}.")
     }
     return [[(OPERATION): operation]]
   }
 
-  private Artifact getImageArtifact(Stage stage) {
-    def stageContext = stage.getContext()
-
-    def artifactId = stageContext.imageArtifactId as String
-    Artifact imageArtifact = stageContext.imageArtifact ? objectMapper.convertValue(stageContext.imageArtifact, Artifact.class) : null
-    if (artifactId == null && imageArtifact == null) {
-      throw new IllegalArgumentException("Image source was set to artifact but no artifact was specified.")
-    }
-    return artifactResolver.getBoundArtifactForStage(stage, artifactId, imageArtifact)
-  }
-
-  private String getImage(Stage stage) {
-    String image
+  private String getImageId(Stage stage) {
+    String imageId
 
     withImageFromPrecedingStage(stage, null, cloudProvider) {
-      image = image ?: it.imageId
+      imageId = imageId ?: it.imageId
     }
 
     withImageFromDeploymentDetails(stage, null, cloudProvider) {
-      image = image ?: it.imageId
+      imageId = imageId ?: it.imageId
     }
 
-    return image
+    return imageId
   }
 
   @Override
